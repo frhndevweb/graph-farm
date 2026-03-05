@@ -1,0 +1,25 @@
+name: Farm 2
+
+on:
+  schedule:
+    - cron: '30 */3 * * *'
+
+jobs:
+  farm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: |
+          export TZ="Asia/Jakarta"
+          DATE=$(date +"%Y-%m-%d %H:%M:%S WIB")
+          echo "Update farm2 $DATE" > README.md
+
+      - run: |
+          git config user.name "frhndevweb"
+          git config user.email "frhndevweb@gmail.com"
+          git add README.md
+          git commit -m "farm2 $DATE" || echo "no commit"
+
+      - run: git push
