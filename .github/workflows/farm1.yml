@@ -2,28 +2,21 @@ name: Farm 1
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
-  farm:
+  farm1:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Update README
+      - name: commit farm
         run: |
-          export TZ="Asia/Jakarta"
-          DATE=$(date +"%Y-%m-%d %H:%M:%S WIB")
-          echo "Update farm1 $DATE" > README.md
-
-      - name: Commit
-        run: |
+          echo $(date) >> farm.txt
           git config user.name "frhndevweb"
           git config user.email "frhndevweb@gmail.com"
-          git add README.md
-          git commit -m "farm1 $DATE" || echo "no commit"
-
-      - name: Push
-        run: git push
+          git add .
+          git commit -m "farm $RANDOM"
+          git push
