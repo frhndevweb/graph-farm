@@ -14,9 +14,10 @@ jobs:
 
       - name: commit farm
         run: |
-          echo $(date) >> farm2.txt
+          echo $(date) >> README.md
           git config user.name "frhndevweb"
           git config user.email "frhndevweb@gmail.com"
           git add .
           git commit -m "farm $RANDOM"
           git push
+
