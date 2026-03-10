@@ -1,0 +1,32 @@
+name: Graph Farm 1
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  farm1:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          echo "[$DATE] farm1 commit executed" >> farm.log
+
+          sed -i "/<!-- FARM_STATUS_START -->/,/<!-- FARM_STATUS_END -->/c\\
+<!-- FARM_STATUS_START -->\\
+Last farm run: $DATE\\
+<!-- FARM_STATUS_END -->" README.md
+
+      - run: |
+          git config user.name "frhndevweb"
+          git config user.email "frhndevweb@gmail.com"
+          git add README.md farm.log
+          git commit -m "🌱 farm1: $DATE" || echo "No changes"
+          git push
