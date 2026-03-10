@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  farm2:
+  farm:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,14 +18,9 @@ jobs:
           DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           echo "[$DATE] farm2 commit executed" >> farm.log
 
-          sed -i "/<!-- FARM_STATUS_START -->/,/<!-- FARM_STATUS_END -->/c\\
-<!-- FARM_STATUS_START -->\\
-Last farm run: $DATE\\
-<!-- FARM_STATUS_END -->" README.md
-
       - run: |
           git config user.name "frhndevweb"
           git config user.email "frhndevweb@gmail.com"
-          git add README.md farm.log
+          git add farm.log
           git commit -m "🌱 farm2: $DATE" || echo "No changes"
           git push
