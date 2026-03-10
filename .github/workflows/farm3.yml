@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  farm3:
+  farm:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,9 +21,6 @@ jobs:
       - run: |
           git config user.name "frhndevweb"
           git config user.email "frhndevweb@gmail.com"
-
           git add farm.log
           git commit -m "🌱 farm3: $DATE" || echo "No changes"
-
-          git pull --rebase
           git push
