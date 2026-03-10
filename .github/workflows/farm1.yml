@@ -9,24 +9,30 @@ permissions:
   contents: write
 
 jobs:
-  farm1:
+  farm:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - run: |
+      - name: Update log and README
+        run: |
           DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          echo "DATE=$DATE" >> $GITHUB_ENV
+
           echo "[$DATE] farm1 commit executed" >> farm.log
 
-          sed -i "/<!-- FARM_STATUS_START -->/,/<!-- FARM_STATUS_END -->/c\\
-<!-- FARM_STATUS_START -->\\
-Last farm run: $DATE\\
-<!-- FARM_STATUS_END -->" README.md
+          sed -i "/<!-- FARM_STATUS_START -->/,/<!-- FARM_STATUS_END -->/c\<!-- FARM_STATUS_START -->\nLast farm run: $DATE\n<!-- FARM_STATUS_END -->" README.md
 
-      - run: |
-          git config user.name "frhndevweb"
-          git config user.email "frhndevweb@gmail.com"
+      - name: Commit
+        run: |
+          git config user.name "graph-farm-bot"
+          git config user.email "actions@github.com"
+
           git add README.md farm.log
+
           git commit -m "🌱 farm1: $DATE" || echo "No changes"
+
+          git pull --rebase
           git push
