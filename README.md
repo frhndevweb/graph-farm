@@ -10,4 +10,4 @@ Last farm run: 2026-03-10 23:59:07 UTC
 
 ## Logs
 
-See `farm.log` for full history.
+See (https://github.com/frhndevweb/graph-farm/blob/main/farm.log)[farm.log] for full history.
