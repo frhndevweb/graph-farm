@@ -1,0 +1,67 @@
+name: 🌱 Farm 8
+
+on:
+  schedule:
+    # Setiap 5 menit, offset 2 menit
+    - cron: "2-59/5 * * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: farm8
+  cancel-in-progress: false
+
+jobs:
+  farm:
+    name: Run Farm 8
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ⚙️ Setup Git
+        run: |
+          git config --global user.name "frhndevweb"
+          git config --global user.email "frhndevweb@gmail.com"
+
+      - name: 🌏 Set Timezone (WIB)
+        run: |
+          sudo timedatectl set-timezone Asia/Jakarta || true
+          echo "TZ=Asia/Jakarta" >> $GITHUB_ENV
+
+      - name: 📁 Create Required Directories
+        run: |
+          mkdir -p logs
+          mkdir -p logs/archive
+          mkdir -p stats
+          mkdir -p scripts
+
+      - name: 🎲 Random Delay
+        run: |
+          DELAY=$((RANDOM % 120 + 10))
+          echo "Sleeping ${DELAY}s..."
+          sleep $DELAY
+
+      - name: 🚀 Run Commit Script
+        run: |
+          chmod +x scripts/*.sh
+          bash scripts/commit.sh 8
+
+      - name: 📤 Commit & Push
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            git add .
+
+            git commit -m "🌱 Farm 8 | $(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M:%S WIB')"
+
+            git push
+          else
+            echo "✅ Nothing to commit."
+          fi
