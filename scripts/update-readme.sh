@@ -1,83 +1,96 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==============================================================================
+# Graph Farm v2 - Live README Status Generator
+# File: scripts/update-readme.sh
+# ==============================================================================
 
-set -e
+set -eo pipefail
 
-export TZ=Asia/Jakarta
+export TZ="Asia/Jakarta"
 
 README="README.md"
 STATS_DIR="stats"
 
-NOW=$(date "+%Y-%m-%d %H:%M:%S WIB")
-
-TOTAL=0
-
-TABLE="| Farm | Commits | Last Run | Log |\n"
-TABLE+="|------|---------|----------|-----|\n"
-
-for i in $(seq 1 10)
-do
-
-FILE="$STATS_DIR/farm$i.json"
-
-if [ -f "$FILE" ]; then
-
-COMMITS=$(jq '.commits' "$FILE")
-
-LAST=$(jq -r '.last_run' "$FILE")
-
-LOG=$(jq -r '.log' "$FILE")
-
-TOTAL=$((TOTAL + COMMITS))
-
-TABLE+="| Farm $i | $COMMITS | $LAST | $LOG |\n"
-
-else
-
-TABLE+="| Farm $i | 0 | - | - |\n"
-
+if [[ ! -f "$README" ]]; then
+    echo "Error: $README not found." >&2
+    exit 1
 fi
 
+NOW=$(date "+%Y-%m-%d %H:%M:%S WIB")
+TOTAL=0
+
+# Helper to extract JSON fields portably (jq if present, regex fallback otherwise)
+extract_field() {
+    local file="$1"
+    local field="$2"
+    if command -v jq >/dev/null 2>&1; then
+        jq -r ".${field} // \"\"" "$file" 2>/dev/null
+    else
+        grep -m 1 "\"${field}\"" "$file" | sed -E "s/.*\"${field}\": *\"?([^,\"]*)\"?.*/\1/" || true
+    fi
+}
+
+TABLE="| Farm | Commits | Last Run (WIB) | Active Log |"$'\n'
+TABLE+="|:---|---:|:---|:---|"$'\n'
+
+for i in $(seq 1 10); do
+    FILE="$STATS_DIR/farm${i}.json"
+
+    if [[ -f "$FILE" ]]; then
+        COMMITS=$(extract_field "$FILE" "commits")
+        LAST_RUN=$(extract_field "$FILE" "last_run")
+        LOG_FILE=$(extract_field "$FILE" "log")
+
+        if [[ ! "$COMMITS" =~ ^[0-9]+$ ]]; then
+            COMMITS=0
+        fi
+        if [[ -z "$LAST_RUN" ]]; then
+            LAST_RUN="-"
+        fi
+        if [[ -z "$LOG_FILE" ]]; then
+            LOG_FILE="-"
+        fi
+
+        TOTAL=$((TOTAL + COMMITS))
+        TABLE+="| Farm ${i} | ${COMMITS} | ${LAST_RUN} | \`${LOG_FILE}\` |"$'\n'
+    else
+        TABLE+="| Farm ${i} | 0 | - | - |"$'\n'
+    fi
 done
 
 STATUS=$(cat <<EOF
 <!-- FARM_STATUS_START -->
 
-## 📊 Farm Status
+### 📊 Live Status
 
-Last Update
+| Metric | Current Value |
+|:---|:---|
+| **Last Synchronized** | **${NOW}** |
+| **Active Timezone** | **Asia/Jakarta (WIB)** |
+| **Total Farm Commits** | **${TOTAL}** |
 
-**$NOW**
+#### Per-Farm Performance Summary
 
-Timezone
-
-**Asia/Jakarta (WIB)**
-
-### Statistics
-
-$TABLE
-
-### Total Commits
-
-**$TOTAL**
-
+${TABLE}
 <!-- FARM_STATUS_END -->
 EOF
 )
 
-awk -v repl="$STATUS" '
-BEGIN {inside=0}
-/<!-- FARM_STATUS_START -->/{
-print repl
-inside=1
-next
+export STATUS
+awk '
+BEGIN { inside = 0 }
+/<!-- FARM_STATUS_START -->/ {
+    print ENVIRON["STATUS"]
+    inside = 1
+    next
 }
-/<!-- FARM_STATUS_END -->/{
-inside=0
-next
+/<!-- FARM_STATUS_END -->/ {
+    inside = 0
+    next
 }
-!inside
-' "$README" > README.tmp
+!inside { print }
+' "$README" > "${README}.tmp"
 
-mv README.tmp "$README"
+mv "${README}.tmp" "$README"
 
-echo "README updated."
+echo "README live status updated successfully. Total commits: ${TOTAL}"

@@ -1,0 +1,89 @@
+name: 🔄 Reusable Farm Runner
+
+on:
+  workflow_call:
+    inputs:
+      farm_id:
+        description: "Farm identifier integer (1-10)"
+        required: true
+        type: number
+      farm_name:
+        description: "Display name of the farm"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  run-farm:
+    name: ${{ inputs.farm_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ⚙️ Setup Git Identity
+        run: |
+          GIT_NAME="${{ vars.GIT_NAME || secrets.GIT_NAME || github.actor }}"
+          GIT_EMAIL="${{ vars.GIT_EMAIL || secrets.GIT_EMAIL || format('{0}@users.noreply.github.com', github.actor) }}"
+          git config --global user.name "$GIT_NAME"
+          git config --global user.email "$GIT_EMAIL"
+          git config --global pull.rebase true
+
+      - name: 🌏 Set Timezone (WIB)
+        run: |
+          sudo timedatectl set-timezone Asia/Jakarta || true
+          echo "TZ=Asia/Jakarta" >> "$GITHUB_ENV"
+
+      - name: 📁 Ensure Directories
+        run: |
+          mkdir -p logs logs/archive stats .farm scripts
+
+      - name: 🎲 Random Delay
+        run: |
+          DELAY=$((RANDOM % 120 + 10))
+          echo "Applying jitter delay of ${DELAY}s..."
+          sleep "$DELAY"
+
+      - name: 🚀 Run Commit Script
+        run: |
+          chmod +x scripts/*.sh
+          bash scripts/commit.sh "${{ inputs.farm_id }}"
+
+      - name: 📤 Commit & Push (with Rebase Retry)
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            git add .
+            COMMIT_MSG="${{ inputs.farm_name }} | $(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M:%S WIB')"
+            git commit -m "$COMMIT_MSG"
+
+            MAX_RETRIES=5
+            ATTEMPT=1
+            PUSH_SUCCESS=0
+
+            while [[ $ATTEMPT -le $MAX_RETRIES ]]; do
+              echo "Push attempt $ATTEMPT of $MAX_RETRIES..."
+              if git push origin main; then
+                PUSH_SUCCESS=1
+                echo "✅ Successfully pushed to main."
+                break
+              fi
+
+              echo "⚠️ Push collision detected. Pulling with rebase and retrying in a few seconds..."
+              git pull --rebase --autostash origin main || true
+              sleep $(( (RANDOM % 5) + 2 ))
+              ATTEMPT=$((ATTEMPT + 1))
+            done
+
+            if [[ $PUSH_SUCCESS -ne 1 ]]; then
+              echo "❌ Error: Failed to push to main after $MAX_RETRIES attempts." >&2
+              exit 1
+            fi
+          else
+            echo "✅ Nothing to commit."
+          fi

@@ -1,69 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==============================================================================
+# Graph Farm v2 - Structured Logger
+# File: scripts/logger.sh
+# ==============================================================================
 
-#########################################
-# Graph Farm v2
-# rotate.sh
-#########################################
+set -eo pipefail
 
-set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/utils.sh
+source "${SCRIPT_DIR}/utils.sh"
 
 FARM_ID="$1"
 COMMIT_NO="$2"
+STATUS="${3:-SUCCESS}"
 
 if [[ -z "$FARM_ID" || -z "$COMMIT_NO" ]]; then
-    echo "Usage: bash rotate.sh <farm_id> <commit_number>"
+    echo "Usage: bash scripts/logger.sh <farm_id> <commit_number> [status]" >&2
     exit 1
 fi
 
+validate_farm_id "$FARM_ID"
+
 LOG_DIR="logs"
-ARCHIVE_DIR="$LOG_DIR/archive"
+ARCHIVE_DIR="logs/archive"
+ensure_dir "$LOG_DIR"
+ensure_dir "$ARCHIVE_DIR"
 
-mkdir -p "$LOG_DIR"
-mkdir -p "$ARCHIVE_DIR"
+LOG_INDEX=$(compute_log_index "$COMMIT_NO")
+ACTIVE_LOG=$(get_log_path "$FARM_ID" "$LOG_INDEX")
+NOW=$(get_timestamp)
 
-#########################################
-# Rotate Every 1000 Commits
-#########################################
+# Append structured log entry
+cat << EOF >> "$ACTIVE_LOG"
 
-LOG_INDEX=$(( (COMMIT_NO - 1) / 1000 + 1 ))
+==========================================
+Time   : $NOW
+Farm   : $FARM_ID
+Commit : #$COMMIT_NO
+Status : $STATUS
+==========================================
 
-if [[ "$LOG_INDEX" -eq 1 ]]; then
-    ACTIVE_LOG="$LOG_DIR/farm${FARM_ID}.log"
-else
-    ACTIVE_LOG="$ARCHIVE_DIR/farm${FARM_ID}-${LOG_INDEX}.log"
-fi
+EOF
 
-touch "$ACTIVE_LOG"
-
-#########################################
-# Keep Only Last 20 Archives
-#########################################
-
-MAX_ARCHIVES=20
-
-FILES=$(ls "$ARCHIVE_DIR"/farm${FARM_ID}-*.log 2>/dev/null | sort)
-
-COUNT=$(echo "$FILES" | grep -c ".log" || true)
-
-if [[ "$COUNT" -gt "$MAX_ARCHIVES" ]]; then
-
-    REMOVE=$((COUNT - MAX_ARCHIVES))
-
-    echo "$FILES" | head -n "$REMOVE" | while read FILE
-    do
-        rm -f "$FILE"
-        echo "Deleted old archive: $FILE"
-    done
-
-fi
-
-#########################################
-# Output
-#########################################
-
-echo "=============================="
-echo "Rotation Completed"
-echo "Farm      : $FARM_ID"
-echo "Commit    : $COMMIT_NO"
-echo "Active Log: $ACTIVE_LOG"
-echo "=============================="
+echo "Log written to: $ACTIVE_LOG"

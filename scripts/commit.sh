@@ -1,64 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==============================================================================
+# Graph Farm v2 - Farm Commit Engine
+# File: scripts/commit.sh
+# ==============================================================================
 
-set -e
+set -eo pipefail
 
-#########################################
-# Graph Farm v2
-# commit.sh
-#########################################
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/utils.sh
+source "${SCRIPT_DIR}/utils.sh"
 
 FARM_ID="$1"
 
-if [ -z "$FARM_ID" ]; then
-    echo "Usage: bash scripts/commit.sh <farm_id>"
+if [[ -z "$FARM_ID" ]]; then
+    echo "Usage: bash scripts/commit.sh <farm_id>" >&2
     exit 1
 fi
 
-export TZ=Asia/Jakarta
+validate_farm_id "$FARM_ID"
 
 LOG_DIR="logs"
 ARCHIVE_DIR="logs/archive"
 STATS_DIR="stats"
 DATA_DIR=".farm"
 
-mkdir -p "$LOG_DIR"
-mkdir -p "$ARCHIVE_DIR"
-mkdir -p "$STATS_DIR"
-mkdir -p "$DATA_DIR"
+ensure_dir "$LOG_DIR"
+ensure_dir "$ARCHIVE_DIR"
+ensure_dir "$STATS_DIR"
+ensure_dir "$DATA_DIR"
 
 COUNT_FILE="$DATA_DIR/farm${FARM_ID}.count"
-
-if [ ! -f "$COUNT_FILE" ]; then
-    echo "0" > "$COUNT_FILE"
-fi
-
-COUNT=$(cat "$COUNT_FILE")
+COUNT=$(read_counter "$COUNT_FILE")
 COUNT=$((COUNT + 1))
+write_counter "$COUNT_FILE" "$COUNT"
 
-echo "$COUNT" > "$COUNT_FILE"
+# Determine active log file according to 1,000-commit rotation policy
+LOG_INDEX=$(compute_log_index "$COUNT")
+LOG_FILE=$(get_log_path "$FARM_ID" "$LOG_INDEX")
+NOW=$(get_timestamp)
 
-#########################################
-# Rotate Log Every 1000 Entries
-#########################################
-
-LOG_INDEX=$(( (COUNT - 1) / 1000 + 1 ))
-
-if [ "$LOG_INDEX" -eq 1 ]; then
-    LOG_FILE="$LOG_DIR/farm${FARM_ID}.log"
-else
-    LOG_FILE="$ARCHIVE_DIR/farm${FARM_ID}-${LOG_INDEX}.log"
-fi
-
-#########################################
-# Timestamp
-#########################################
-
-NOW=$(date "+%Y-%m-%d %H:%M:%S WIB")
-
-#########################################
-# Log
-#########################################
-
+# Write structured log entry
 cat << EOF >> "$LOG_FILE"
 
 ==========================================
@@ -70,39 +51,36 @@ Status : SUCCESS
 
 EOF
 
-#########################################
-# Stats
-#########################################
+# Rotate and prune archives if in archive mode (keep up to 20 archives)
+if [[ "$LOG_INDEX" -gt 1 ]]; then
+    rotate_and_prune_archives "$FARM_ID" 20
+fi
 
-cat > "$STATS_DIR/farm${FARM_ID}.json" << EOF
-{
-  "farm": $FARM_ID,
-  "commits": $COUNT,
-  "last_run": "$NOW",
-  "log": "$(basename "$LOG_FILE")"
-}
-EOF
+# Write updated statistics JSON
+STATS_FILE="$STATS_DIR/farm${FARM_ID}.json"
+LOG_BASENAME=$(basename "$LOG_FILE")
+write_stats_file "$STATS_FILE" "$FARM_ID" "$COUNT" "$NOW" "$LOG_BASENAME"
 
-#########################################
-# Generate Random Content
-#########################################
-
+# Update repository data file with deterministic change
 RANDOM_FILE="$DATA_DIR/farm${FARM_ID}.txt"
+{
+    echo "$NOW"
+    echo "$RANDOM"
+    echo "$COUNT"
+} > "$RANDOM_FILE"
 
-echo "$NOW" > "$RANDOM_FILE"
-echo "$RANDOM" >> "$RANDOM_FILE"
-echo "$COUNT" >> "$RANDOM_FILE"
+# Automatically synchronize README live status
+if [[ -f "${SCRIPT_DIR}/update-readme.sh" ]]; then
+    bash "${SCRIPT_DIR}/update-readme.sh" || echo "Warning: Could not update README.md" >&2
+fi
 
-#########################################
-# Summary
-#########################################
-
+# Output summary banner
 echo ""
 echo "=============================="
-echo "Graph Farm"
-echo "Farm      : $FARM_ID"
-echo "Commit    : $COUNT"
-echo "Time      : $NOW"
+echo "🌱 Graph Farm v2"
+echo "Farm ID   : $FARM_ID"
+echo "Commit #  : $COUNT"
+echo "Timestamp : $NOW"
 echo "Log File  : $LOG_FILE"
 echo "=============================="
 echo ""
