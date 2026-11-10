@@ -52,9 +52,9 @@ Graph Farm was designed with minimalism, predictability, and fault-tolerance in 
 
 | Metric | Current Value |
 |:---|:---|
-| **Last Synchronized** | **2026-11-10 09:24:25 WIB** |
+| **Last Synchronized** | **2026-11-10 09:44:36 WIB** |
 | **Active Timezone** | **Asia/Jakarta (WIB)** |
-| **Total Farm Commits** | **11534** |
+| **Total Farm Commits** | **11535** |
 
 #### Per-Farm Performance Summary
 
@@ -67,7 +67,7 @@ Graph Farm was designed with minimalism, predictability, and fault-tolerance in 
 | Farm 5 | 1002 | 2026-11-09 19:07:51 WIB | `farm5-2.log` |
 | Farm 6 | 1136 | 2026-11-10 04:32:45 WIB | `farm6-2.log` |
 | Farm 7 | 1176 | 2026-11-10 04:29:55 WIB | `farm7-2.log` |
-| Farm 8 | 1103 | 2026-11-10 03:11:21 WIB | `farm8-2.log` |
+| Farm 8 | 1104 | 2026-11-10 09:44:36 WIB | `farm8-2.log` |
 | Farm 9 | 1300 | 2026-11-10 09:24:25 WIB | `farm9-2.log` |
 | Farm 10 | 1107 | 2026-11-10 03:52:38 WIB | `farm10-2.log` |
 
